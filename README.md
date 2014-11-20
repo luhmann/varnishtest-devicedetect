@@ -1,1 +1,1 @@
-`pip install beautifulsoup4 Jinja2 pywurfl pyparsing`
+`pip install Jinja2 pywurfl pyparsing pyyaml`
