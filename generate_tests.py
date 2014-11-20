@@ -23,7 +23,7 @@ def loadTemplate():
 
 def run():
     generateDesktopTests()
-    # generateMobileTests()
+    generateMobileTests()
 
 def generateDesktopTests():
     renderer = loadTemplate()
