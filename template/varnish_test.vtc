@@ -1,0 +1,58 @@
+varnishtest "This is my first test"
+
+server s1 {
+  rxreq
+  txresp
+
+} -start
+
+varnish v1 -vcl+backend {
+  include "${pwd}/../devicedetect.vcl";
+
+  sub vcl_recv {
+      call devicedetect;
+  }
+
+  sub vcl_fetch {
+    # Add or extend the current Vary header with information of
+    # the device that is used.
+    if (req.http.X-UA-Device) {
+      if (!beresp.http.Vary) { # no Vary at all
+        set beresp.http.Vary = "X-UA-Device";
+      } elseif (beresp.http.Vary !~ "X-UA-Device") { # add to existing Vary
+        set beresp.http.Vary = beresp.http.Vary + ", X-UA-Device";
+      }
+    }
+
+    # simplify response for testing to what we actually use
+    if (req.http.X-UA-Device ~ "mobile") {
+      set req.http.X-UA-Device = "mobile";
+    }
+
+    if (req.http.X-UA-Device ~ "tablet") {
+      set req.http.X-UA-Device = "tablet";
+    }
+
+    # Add device information to the response.
+    set beresp.http.X-UA-Device = req.http.X-UA-Device;
+  }
+
+  sub vcl_deliver {
+    # To keep any caches in the wild from serving wrong content to client #2 behind them, we need to
+    # transform the Vary on the way out.
+    if (req.http.X-UA-Device && resp.http.Vary) {
+      set resp.http.Vary = regsub(resp.http.Vary, "X-UA-Device", "User-Agent");
+    }
+  }
+
+} -start
+
+# Testing Google User-Agent-Strings
+client c1 {
+  txreq -hdr "User-Agent: {{ agent }}"
+  rxresp
+  expect resp.status == 200
+  expect resp.http.X-UA-Device == "{{ device }}"
+} -run
+
+varnish v1 -expect client_req == 1
